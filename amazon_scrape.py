@@ -1,80 +1,49 @@
 from lxml import html
 import csv,os,json
 import requests
-import books
+import sys
 
 from exceptions import ValueError
 from time import sleep
 
+if len(sys.argv) != 2:
+    sys.stderr.write("usage: {} need second argument ".format(sys.argv[0]))
+    exit(-1) # or deal with this case in another way
+url = sys.argv[1]
 
 def AmzonParser(url):
     headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) \
             AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.90 \
             Safari/537.36'}
     page = requests.get(url, headers=headers)
-    while True:
-        sleep(3)
-        try:
-            doc = html.fromstring(page.content)
-            XPATH_NAME = '//h1[@id="title"]//text()'
-            XPATH_SALE_PRICE = '//span[contains(@id,"ourprice") \
-                    or contains(@id,"saleprice")]/text()'
-            XPATH_ORIGINAL_PRICE = '//td[contains(text(),"List \
-                    Price") or contains(text(),"M.R.P") or \
-                    contains(text(),"Price")]/following-sibling:\
-                    :td/text()'
-            XPATH_CATEGORY = '//a[@class="a-link-normal \
-                    a-color-tertiary"]//text()'
-            XPATH_AVAILABILITY = '//div[@id="availability"]\
-                    //text()'
+    doc = html.fromstring(page.content)
 
-            RAW_NAME = doc.xpath(XPATH_NAME)
-            RAW_SALE_PRICE = doc.xpath(XPATH_SALE_PRICE)
-            RAW_CATEGORY = doc.xpath(XPATH_CATEGORY)
-            RAW_ORIGINAL_PRICE = doc.xpath(XPATH_ORIGINAL_PRICE)
-            RAw_AVAILABILITY = doc.xpath(XPATH_AVAILABILITY)
+    RAW_NAME = doc.xpath('//h1[@id="title"]//text()')
+    RAW_AUTHOR = doc.xpath('//*[@id="bylineInfo"]/span/span[1]/a[1]//text()')
+    RAW_IMAGE = doc.xpath('//img[@id="ebooksImgBlkFront"]/@src')
 
-            NAME = ' '.join(''.join(RAW_NAME).split()) \
-                if RAW_NAME else None
-            SALE_PRICE = ' '.join(''.join(RAW_SALE_PRICE).split())\
-                .strip() if RAW_SALE_PRICE else None
-            CATEGORY = ' > '.join([i.strip() for i in RAW_CATEGORY])\
-                if RAW_CATEGORY else None
-            ORIGINAL_PRICE = ''.join(RAW_ORIGINAL_PRICE).strip()\
-                if RAW_ORIGINAL_PRICE else None
-            AVAILABILITY = ''.join(RAw_AVAILABILITY).strip()\
-                if RAw_AVAILABILITY else None
+    NAME = ' '.join(''.join(RAW_NAME).split()) \
+        if RAW_NAME else None
+    AUTHOR = ' '.join(''.join(RAW_AUTHOR).split()).strip()\
+        if RAW_AUTHOR else None
+    IMAGE = ' > '.join([i.strip() for i in RAW_IMAGE])\
+        if RAW_IMAGE else None
 
-            if not ORIGINAL_PRICE:
-                ORIGINAL_PRICE = SALE_PRICE
+    if page.status_code != 200:
+        raise ValueError('captha')
+    data = {
+            'name': NAME,
+            'author': AUTHOR,
+            'image': IMAGE,
+            'url': url,
+            }
 
-            if page.status_code != 200:
-                raise ValueError('captha')
-            data = {
-                    'NAME': NAME,
-                    'SALE_PRICE': SALE_PRICE,
-                    'CATEGORY': CATEGORY,
-                    'ORIGINAL_PRICE': ORIGINAL_PRICE,
-                    'AVAILABILITY': AVAILABILITY,
-                    'URL': url,
-                    }
-
-            return data
-        except Exception as e:
-            print e
+    return data
 
 
 def ReadAsin():
-    AsinList = books
-    extracted_data = []
-    for i in AsinList:
-        url = "http://www.amazon.com/dp/"+i
-        print "Processing: "+url
-        extracted_data.append(AmzonParser(url))
-        sleep(5)
-        f = open('data.json', 'w')
-        json.dump(extracted_data, f, indent=4)
-
+    print "Processing: "+ url
+    print json.dumps(AmzonParser(url), sort_keys=True, indent=4)
 
 if __name__ == "__main__":
     ReadAsin()
