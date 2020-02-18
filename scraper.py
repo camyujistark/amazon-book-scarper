@@ -5,7 +5,6 @@ from exceptions import ValueError
 
 import requests
 from lxml import html
-from validator_collection import checkers
 
 from constants import SHORT_URL, URL_HEADERS
 from ProcessProductData import ProcessProductData
@@ -18,8 +17,6 @@ def generateAmazonShortURL(string):
     TYPE = 'dp'
     if not string:
         sys.exit('need parameter')
-    if not checkers.is_url(string):
-        ID = string
     else:
         regDp = re.compile(r'^.*(dp|gp)\/([A-Za-z0-9]+)')
         match = regDp.search(string)
